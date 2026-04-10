@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnóstico Financeiro | [NOME DA EMPRESA]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <!-- e-mails enviados via backend Vercel + Brevo -->
+
+  <style>
+  /* ==========================================================
+     RESET & VARIÁVEIS — PALETA VERDE & PRETO
+  ========================================================== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green:        #0A7B5C;
+    --green-dark:   #065E45;
+    --green-light:  #1DB87A;
+    --green-bg:     #EBF5F0;
+    --green-border: #A7D7C5;
+
+    --black:        #0D1F17;
+    --dark:         #1A2E23;
+    --mid:          #2D4A3A;
+
+    --bg:           #F2F6F4;
+    --white:        #FFFFFF;
+    --text:         #0D1F17;
+    --text-2:       #3D5947;
+    --text-muted:   #6B8878;
+    --border:       #D4E4DC;
+
+    --danger:       #C0392B;
+    --danger-bg:    #FDECEB;
+    --warning:      #B7770D;
+    --warning-bg:   #FEF3DC;
+    --success:      #0A7B5C;
+    --success-bg:   #EBF5F0;
+
+    --radius:       14px;
+    --radius-sm:    8px;
+    --shadow:       0 1px 4px rgba(10,31,23,.06), 0 4px 16px rgba(10,31,23,.07);
+    --shadow-lg:    0 8px 32px rgba(10,31,23,.14);
+    --font:         'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --trans:        .2s ease;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ==========================================================
+     HEADER
+  ========================================================== */
+  .site-header {
+    background: var(--black);
+    padding: 0 32px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 300;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+
+  .logo {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -.4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--green-light);
+    flex-shrink: 0;
+  }
+
+  /* ==========================================================
+     LAYOUT
+  ========================================================== */
+  .container {
+    max-width: 800px;
+    margin: 36px auto 100px;
+    padding: 0 20px;
+  }
+
+  /* ==========================================================
+     BARRA DE PROGRESSO (estilo segmentado)
+  ========================================================== */
+  .steps-bar {
+    display: flex;
+    align-items: stretch;
+    background: var(--white);
+    border-radius: 99px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 32px;
+    border: 1px solid var(--border);
+  }
+
+  .step-seg {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: background var(--trans), color var(--trans);
+    cursor: default;
+    white-space: nowrap;
+    border-right: 1px solid var(--border);
+  }
+
+  .step-seg:last-child { border-right: none; }
+
+  .step-seg.active {
+    background: var(--green);
+    color: var(--white);
+  }
+
+  .step-seg.done {
+    background: var(--green-bg);
+    color: var(--green);
+  }
+
+  .step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255,255,255,.25);
+    flex-shrink: 0;
+  }
+
+  .step-seg.done .step-num { background: var(--green-border); color: var(--green-dark); }
+  .step-seg:not(.active):not(.done) .step-num { background: var(--border); color: var(--text-muted); }
+
+  /* ==========================================================
+     CARD
+  ========================================================== */
+  .card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 32px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .card-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ==========================================================
+     FORM
+  ========================================================== */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"] {
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--white);
+    outline: none;
+    width: 100%;
+    transition: border-color var(--trans), box-shadow var(--trans);
+  }
+
+  input::placeholder { color: #B0C4BB; }
+
+  input:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(10,123,92,.12);
+  }
+
+  input.has-error { border-color: var(--danger); }
+
+  .field-error {
+    font-size: 11.5px;
+    color: var(--danger);
+    font-weight: 500;
+    display: none;
+  }
+
+  /* ==========================================================
+     RADIO CARDS
+  ========================================================== */
+  .radio-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 8px;
+  }
+
+  .radio-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .radio-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .radio-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .r-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--trans);
+    text-align: center;
+    background: var(--white);
+    user-select: none;
+  }
+
+  .r-card:hover {
+    border-color: var(--green);
+    background: var(--green-bg);
+  }
+
+  .r-card.selected {
+    border-color: var(--green);
+    background: var(--green-bg);
+  }
+
+  .r-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .r-icon { font-size: 22px; line-height: 1; }
+
+  .r-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    line-height: 1.3;
+  }
+
+  .r-card.selected .r-text { color: var(--green); }
+
+  .r-check {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--green);
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .r-check::after {
+    content: '✓';
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+  }
+
+  .r-card.selected .r-check { display: flex; }
+
+  /* Para radio cards inline (régime/dívida) */
+  .r-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--trans);
+    background: var(--white);
+    user-select: none;
+    position: relative;
+  }
+
+  .r-inline:hover { border-color: var(--green); background: var(--green-bg); }
+  .r-inline.selected { border-color: var(--green); background: var(--green-bg); }
+  .r-inline input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+
+  .r-inline-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+  }
+  .r-inline.selected .r-inline-text { color: var(--green); }
+
+  .r-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    transition: all var(--trans);
+  }
+  .r-inline.selected .r-dot {
+    border-color: var(--green);
+    background: var(--green);
+    box-shadow: inset 0 0 0 3px white;
+  }
+
+  /* ==========================================================
+     SECTION DIVIDER
+  ========================================================== */
+  .section-block { margin-top: 26px; }
+
+  /* ==========================================================
+     BOTÕES
+  ========================================================== */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 30px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 11px 22px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all var(--trans);
+    letter-spacing: .1px;
+  }
+
+  .btn:active { transform: scale(.98); }
+
+  .btn-primary {
+    background: var(--green);
+    color: var(--white);
+  }
+  .btn-primary:hover {
+    background: var(--green-dark);
+    box-shadow: 0 4px 14px rgba(10,123,92,.35);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1.5px solid var(--border);
+  }
+  .btn-ghost:hover {
+    border-color: var(--green);
+    color: var(--green);
+    background: var(--green-bg);
+  }
+
+  .btn-dark {
+    background: var(--black);
+    color: var(--white);
+  }
+  .btn-dark:hover {
+    background: var(--dark);
+    box-shadow: 0 4px 14px rgba(13,31,23,.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-whatsapp {
+    background: #25D366;
+    color: var(--white);
+  }
+  .btn-whatsapp:hover {
+    background: #1EBD5A;
+    box-shadow: 0 4px 14px rgba(37,211,102,.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-print {
+    background: var(--white);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+  .btn-print:hover {
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .btn-lg { padding: 13px 28px; font-size: 15px; }
+
+  /* ==========================================================
+     RELATÓRIO — HEADER
+  ========================================================== */
+  .report-header {
+    background: var(--black);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .report-header::before {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(29,184,122,.08);
+  }
+
+  .report-header::after {
+    content: '';
+    position: absolute;
+    right: 40px; bottom: -80px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(29,184,122,.05);
+  }
+
+  .report-header-text h1 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .report-header-text p {
+    font-size: 13px;
+    color: rgba(255,255,255,.6);
+  }
+
+  .report-header-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .report-tag {
+    background: rgba(29,184,122,.2);
+    color: #6EEFBB;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 99px;
+    letter-spacing: .3px;
+  }
+
+  /* ==========================================================
+     SCORE GAUGE
+  ========================================================== */
+  .score-wrap {
+    text-align: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .gauge-svg {
+    width: 160px;
+    height: 100px;
+    display: block;
+    overflow: visible;
+  }
+
+  .score-number {
+    font-size: 26px;
+    font-weight: 800;
+    fill: var(--white);
+    font-family: 'Inter', sans-serif;
+  }
+
+  .score-sub {
+    font-size: 11px;
+    fill: rgba(255,255,255,.6);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+  }
+
+  /* ==========================================================
+     BANNER
+  ========================================================== */
+  .ok-banner {
+    background: var(--success-bg);
+    border: 1px solid var(--green-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--green-dark);
+    font-weight: 600;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ==========================================================
+     KPI CARDS
+  ========================================================== */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .kpi {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 18px 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--border);
+    text-align: center;
+  }
+
+  .kpi.k-green  { border-top-color: var(--green); }
+  .kpi.k-red    { border-top-color: #C0392B; }
+  .kpi.k-amber  { border-top-color: #B7770D; }
+  .kpi.k-dark   { border-top-color: var(--dark); }
+
+  .kpi-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+  }
+
+  .kpi-val {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .kpi-val.cv-green { color: var(--green); }
+  .kpi-val.cv-red   { color: #C0392B; }
+  .kpi-val.cv-amber { color: #B7770D; }
+
+  /* ==========================================================
+     CHARTS
+  ========================================================== */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .chart-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  .chart-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  .chart-wrap { position: relative; height: 200px; }
+
+  .legend-list { margin-top: 12px; }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--bg);
+    font-size: 12px;
+  }
+  .legend-row:last-child { border-bottom: none; }
+  .legend-left { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .legend-right { font-weight: 700; color: var(--text); }
+  .legend-pct  { font-size: 10.5px; color: var(--text-muted); margin-left: 4px; }
+
+  /* ==========================================================
+     INDICADORES
+  ========================================================== */
+  .ind-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+
+  .ind-card h3 {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 18px;
+  }
+
+  .ind-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .ind-row:last-child { border-bottom: none; }
+
+  .ind-name { font-size: 13px; font-weight: 600; color: var(--text); width: 190px; flex-shrink: 0; }
+
+  .ind-bar-wrap { flex: 1; }
+
+  .ind-track {
+    height: 6px;
+    background: var(--bg);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .ind-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+  }
+
+  .ind-meta {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .badge {
+    padding: 4px 11px;
+    border-radius: 99px;
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    white-space: nowrap;
+  }
+  .b-green  { background: var(--success-bg); color: var(--green-dark); }
+  .b-amber  { background: var(--warning-bg); color: var(--warning); }
+  .b-red    { background: var(--danger-bg);  color: var(--danger); }
+
+  /* ==========================================================
+     PRÓXIMOS PASSOS
+  ========================================================== */
+  .steps-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+
+  .steps-card h3 {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 18px;
+  }
+
+  .next-step {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .next-step:last-child { border-bottom: none; }
+
+  .step-priority {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+  .p-alta   { background: var(--danger-bg);  color: var(--danger); }
+  .p-media  { background: var(--warning-bg); color: var(--warning); }
+  .p-baixa  { background: var(--success-bg); color: var(--green); }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .step-desc {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .priority-tag {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-left: 8px;
+  }
+  .pt-alta  { background: var(--danger-bg);  color: var(--danger); }
+  .pt-media { background: var(--warning-bg); color: var(--warning); }
+  .pt-baixa { background: var(--success-bg); color: var(--green); }
+
+  /* ==========================================================
+     RESUMO (card escuro)
+  ========================================================== */
+  .summary-card {
+    background: var(--black);
+    border-radius: var(--radius);
+    padding: 26px 28px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    right: -30px; top: -30px;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(29,184,122,.07);
+  }
+
+  .summary-card h3 {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--green-light);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .summary-card p {
+    font-size: 13.5px;
+    color: rgba(255,255,255,.78);
+    line-height: 1.8;
+    position: relative;
+  }
+
+  /* ==========================================================
+     CTA
+  ========================================================== */
+  .cta-bar {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 22px 26px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .cta-text h4 { font-size: 15px; font-weight: 800; }
+  .cta-text p  { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+
+  .cta-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ==========================================================
+     FOOTER
+  ========================================================== */
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* ==========================================================
+     PAGE TRANSITIONS
+  ========================================================== */
+  .page { display: none; }
+  .page.active {
+    display: block;
+    animation: slideUp .3s ease;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ==========================================================
+     PRINT STYLESHEET
+  ========================================================== */
+  @media print {
+    .site-header,
+    .steps-bar,
+    .btn-row,
+    .cta-bar,
+    .ok-banner,
+    #step1, #step2, #step3 { display: none !important; }
+
+    #step4 { display: block !important; }
+
+    body { background: white; font-size: 12px; }
+
+    .container { margin: 0; padding: 0; max-width: 100%; }
+
+    .report-header {
+      background: #0D1F17 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      border-radius: 8px;
+    }
+
+    .card, .chart-card, .ind-card, .steps-card, .kpi { box-shadow: none; border: 1px solid #ddd; }
+
+    .summary-card {
+      background: #0D1F17 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    canvas { max-width: 100%; }
+
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    .charts-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ==========================================================
+     RESPONSIVE
+  ========================================================== */
+  @media (max-width: 640px) {
+    .grid-2          { grid-template-columns: 1fr; }
+    .radio-grid-4    { grid-template-columns: 1fr 1fr; }
+    .radio-grid-3    { grid-template-columns: 1fr; }
+    .kpi-grid        { grid-template-columns: 1fr 1fr; }
+    .charts-row      { grid-template-columns: 1fr; }
+    .card            { padding: 20px 16px; }
+    .container       { margin-top: 20px; padding: 0 12px 60px; }
+    .report-header   { flex-direction: column; align-items: flex-start; }
+    .ind-name        { width: 130px; }
+    .cta-bar         { flex-direction: column; align-items: flex-start; }
+    .steps-bar       { border-radius: 12px; }
+    .step-seg        { padding: 10px 4px; font-size: 11px; gap: 4px; }
+    .step-seg .step-label { display: none; }
+  }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER
+============================================================ -->
+<header class="site-header">
+  <div class="logo">
+    <span class="logo-dot"></span>
+    <!--
+      PERSONALIZE: troque pelo seu nome ou logo
+      Para imagem: <img src="logo.png" alt="Logo" height="32" style="filter:brightness(0) invert(1)">
+    -->
+    [NOME DA EMPRESA]
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ============================================================
+       BARRA DE PROGRESSO SEGMENTADA
+  ============================================================ -->
+  <div class="steps-bar" id="stepsBar">
+    <div class="step-seg active" id="seg1">
+      <div class="step-num">1</div>
+      <span class="step-label">Perfil</span>
+    </div>
+    <div class="step-seg" id="seg2">
+      <div class="step-num">2</div>
+      <span class="step-label">Passivo</span>
+    </div>
+    <div class="step-seg" id="seg3">
+      <div class="step-num">3</div>
+      <span class="step-label">Operacional</span>
+    </div>
+    <div class="step-seg" id="seg4">
+      <div class="step-num">4</div>
+      <span class="step-label">Diagnóstico</span>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PASSO 1 — PERFIL + CONTATO
+  ============================================================ -->
+  <div class="page active" id="step1">
+    <div class="card">
+      <h2 class="card-title">Perfil da Empresa</h2>
+      <p class="card-desc">Preencha seus dados para receber um diagnóstico personalizado com benchmarks do seu setor.</p>
+
+      <!-- Dados de contato -->
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="nome">Nome Completo *</label>
+          <input type="text" id="nome" placeholder="Ex: João Silva">
+          <span class="field-error" id="err-nome">Informe seu nome.</span>
+        </div>
+        <div class="form-group">
+          <label for="empresa">Empresa *</label>
+          <input type="text" id="empresa" placeholder="Ex: ABC Comércio Ltda.">
+          <span class="field-error" id="err-empresa">Informe a empresa.</span>
+        </div>
+        <div class="form-group">
+          <label for="email">E-mail *</label>
+          <input type="email" id="email" placeholder="Ex: joao@empresa.com.br">
+          <span class="field-error" id="err-email">Informe um e-mail válido.</span>
+        </div>
+        <div class="form-group">
+          <label for="whatsapp">WhatsApp *</label>
+          <input type="tel" id="whatsapp" placeholder="Ex: (11) 99999-9999" maxlength="15">
+          <span class="field-error" id="err-whatsapp">Informe o WhatsApp.</span>
+        </div>
+      </div>
+
+      <!-- Segmento -->
+      <div class="section-block">
+        <p class="radio-label">Segmento da empresa *</p>
+        <div class="radio-grid-4" id="grp-segmento">
+          <label class="r-card" onclick="selCard(this,'segmento')">
+            <input type="radio" name="segmento" value="comercio">
+            <div class="r-check"></div>
+            <span class="r-icon">🛒</span>
+            <span class="r-text">Comércio</span>
+          </label>
+          <label class="r-card" onclick="selCard(this,'segmento')">
+            <input type="radio" name="segmento" value="industria">
+            <div class="r-check"></div>
+            <span class="r-icon">🏭</span>
+            <span class="r-text">Indústria</span>
+          </label>
+          <label class="r-card" onclick="selCard(this,'segmento')">
+            <input type="radio" name="segmento" value="servicos">
+            <div class="r-check"></div>
+            <span class="r-icon">💼</span>
+            <span class="r-text">Serviços</span>
+          </label>
+          <label class="r-card" onclick="selCard(this,'segmento')">
+            <input type="radio" name="segmento" value="agronegocio">
+            <div class="r-check"></div>
+            <span class="r-icon">🌾</span>
+            <span class="r-text">Agronegócio</span>
+          </label>
+        </div>
+        <span class="field-error" id="err-segmento" style="display:block; margin-top:6px;">Selecione o segmento.</span>
+      </div>
+
+      <!-- Regime Tributário -->
+      <div class="section-block">
+        <p class="radio-label">Regime Tributário *</p>
+        <div class="radio-grid-3" id="grp-regime">
+          <label class="r-inline" onclick="selInline(this,'regime')">
+            <input type="radio" name="regime" value="simples">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Simples Nacional</span>
+          </label>
+          <label class="r-inline" onclick="selInline(this,'regime')">
+            <input type="radio" name="regime" value="presumido">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Lucro Presumido</span>
+          </label>
+          <label class="r-inline" onclick="selInline(this,'regime')">
+            <input type="radio" name="regime" value="real">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Lucro Real</span>
+          </label>
+        </div>
+        <span class="field-error" id="err-regime" style="display:block; margin-top:6px;">Selecione o regime tributário.</span>
+      </div>
+
+      <!-- Faixa de dívida -->
+      <div class="section-block">
+        <p class="radio-label">Faixa total de dívidas (R$) *</p>
+        <div class="radio-grid-2" id="grp-divida">
+          <label class="r-inline" onclick="selInline(this,'divida_range')">
+            <input type="radio" name="divida_range" value="Acima de R$ 1 milhão">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Acima de R$ 1 milhão</span>
+          </label>
+          <label class="r-inline" onclick="selInline(this,'divida_range')">
+            <input type="radio" name="divida_range" value="Acima de R$ 10 milhões">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Acima de R$ 10 milhões</span>
+          </label>
+          <label class="r-inline" onclick="selInline(this,'divida_range')">
+            <input type="radio" name="divida_range" value="Acima de R$ 20 milhões">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Acima de R$ 20 milhões</span>
+          </label>
+          <label class="r-inline" onclick="selInline(this,'divida_range')">
+            <input type="radio" name="divida_range" value="Menor que as opções acima">
+            <span class="r-dot"></span>
+            <span class="r-inline-text">Menor que as opções acima</span>
+          </label>
+        </div>
+        <span class="field-error" id="err-divida-range" style="display:block; margin-top:6px;">Selecione a faixa de dívida.</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="irPara(2)">Próximo &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PASSO 2 — PASSIVO
+  ============================================================ -->
+  <div class="page" id="step2">
+    <div class="card">
+      <h2 class="card-title">Informações Financeiras — Passivo</h2>
+      <p class="card-desc">Informe o valor atual de cada categoria de dívida. Deixe em branco se não houver.</p>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="div-bancaria">Dívidas Bancárias (R$)</label>
+          <input type="text" id="div-bancaria" class="money" placeholder="Ex: 2.500.000,00">
+        </div>
+        <div class="form-group">
+          <label for="div-fornecedor">Dívidas com Fornecedores (R$)</label>
+          <input type="text" id="div-fornecedor" class="money" placeholder="Ex: 2.100.000,00">
+        </div>
+        <div class="form-group">
+          <label for="div-trabalhista">Dívidas Trabalhistas (R$)</label>
+          <input type="text" id="div-trabalhista" class="money" placeholder="Ex: 850.000,00">
+        </div>
+        <div class="form-group">
+          <label for="imp-federal">Impostos Federais (R$)</label>
+          <input type="text" id="imp-federal" class="money" placeholder="Ex: 1.800.000,00">
+        </div>
+        <div class="form-group">
+          <label for="imp-estadual">Impostos Estaduais (R$)</label>
+          <input type="text" id="imp-estadual" class="money" placeholder="Ex: 750.000,00">
+        </div>
+        <div class="form-group">
+          <label for="imp-municipal">Impostos Municipais (R$)</label>
+          <input type="text" id="imp-municipal" class="money" placeholder="Ex: 250.000,00">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="irPara(1)">&larr; Voltar</button>
+        <button class="btn btn-primary" onclick="irPara(3)">Próximo &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PASSO 3 — OPERACIONAL
+  ============================================================ -->
+  <div class="page" id="step3">
+    <div class="card">
+      <h2 class="card-title">Informações Financeiras — Operacionais</h2>
+      <p class="card-desc">Dados sobre faturamento, resultado e estrutura da sua operação.</p>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="fat-anual">Faturamento últimos 12 meses (R$)</label>
+          <input type="text" id="fat-anual" class="money" placeholder="Ex: 14.000.000,00">
+        </div>
+        <div class="form-group">
+          <label for="fat-mensal">Faturamento último mês (R$)</label>
+          <input type="text" id="fat-mensal" class="money" placeholder="Ex: 850.000,00">
+        </div>
+        <div class="form-group">
+          <label for="estoque">Valor total do estoque (R$)</label>
+          <input type="text" id="estoque" class="money" placeholder="Ex: 2.350.000,00">
+        </div>
+        <div class="form-group">
+          <label for="lucro">Lucro ou Prejuízo Mensal (R$)</label>
+          <input type="text" id="lucro" class="money-signed" placeholder="Ex: 85.000,00 (negativo = prejuízo)">
+        </div>
+        <div class="form-group">
+          <label for="funcionarios">Número de Funcionários</label>
+          <input type="number" id="funcionarios" placeholder="Ex: 113" min="0">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="irPara(2)">&larr; Voltar</button>
+        <button class="btn btn-dark btn-lg" onclick="gerarDiagnostico()">&#9654;&nbsp; Gerar Diagnóstico</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PASSO 4 — RELATÓRIO / DIAGNÓSTICO
+  ============================================================ -->
+  <div class="page" id="step4">
+
+    <!-- Header do relatório com Gauge de saúde -->
+    <div class="report-header">
+      <div class="report-header-text">
+        <h1 id="report-title">Dashboard Financeiro</h1>
+        <p id="report-subtitle">Diagnóstico gerado em <span id="report-date"></span></p>
+        <div class="report-header-tags" id="report-tags"></div>
+      </div>
+      <div class="score-wrap">
+        <svg class="gauge-svg" viewBox="0 0 160 100" id="gaugeSVG">
+          <!-- trilha de fundo -->
+          <path d="M 20 80 A 60 60 0 0 1 140 80"
+            fill="none" stroke="rgba(255,255,255,.12)" stroke-width="12" stroke-linecap="round"/>
+          <!-- arco do score -->
+          <path id="gaugeArc"
+            fill="none" stroke="#1DB87A" stroke-width="12" stroke-linecap="round"
+            d="M 20 80 A 60 60 0 0 1 20 80"/>
+          <!-- score -->
+          <text x="80" y="68" text-anchor="middle" class="score-number" id="scoreNum">—</text>
+          <text x="80" y="86" text-anchor="middle" class="score-sub" id="scoreLbl">calculando...</text>
+        </svg>
+        <div style="font-size:10px; color:rgba(255,255,255,.4); margin-top:2px; text-align:center; letter-spacing:.4px;">ÍNDICE DE SAÚDE</div>
+      </div>
+    </div>
+
+    <!-- Banner e-mail -->
+    <div class="ok-banner">✅ Relatório completo enviado para o seu e-mail!</div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi k-red">
+        <div class="kpi-label">Passivo Total</div>
+        <div class="kpi-val cv-red" id="kpi-passivo">—</div>
+      </div>
+      <div class="kpi k-green">
+        <div class="kpi-label">Faturamento Anual</div>
+        <div class="kpi-val cv-green" id="kpi-fat">—</div>
+      </div>
+      <div class="kpi k-amber">
+        <div class="kpi-label">Margem de Lucro</div>
+        <div class="kpi-val" id="kpi-margem">—</div>
+      </div>
+      <div class="kpi k-dark">
+        <div class="kpi-label">Funcionários</div>
+        <div class="kpi-val" id="kpi-func">—</div>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <h3>Composição do Passivo</h3>
+        <div class="chart-wrap"><canvas id="chartPassivo"></canvas></div>
+        <div class="legend-list" id="legendPassivo"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Faturamento vs Passivo</h3>
+        <div class="chart-wrap"><canvas id="chartCompare"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Indicadores com benchmark por setor -->
+    <div class="ind-card">
+      <h3>📊 Indicadores — Benchmark do Setor</h3>
+      <div id="indicadores"></div>
+    </div>
+
+    <!-- Próximos Passos -->
+    <div class="steps-card">
+      <h3>🎯 Próximos Passos Recomendados</h3>
+      <div id="proximosPassos"></div>
+    </div>
+
+    <!-- Resumo (card escuro) -->
+    <div class="summary-card">
+      <h3>💡 Análise Resumida</h3>
+      <p id="resumoTexto"></p>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-bar">
+      <div class="cta-text">
+        <h4>Quer um plano de ação personalizado?</h4>
+        <p>Nossa equipe especializada pode ajudar a sua empresa a recuperar a saúde financeira.</p>
+      </div>
+      <div class="cta-btns">
+        <button class="btn btn-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+        <button class="btn btn-ghost" onclick="irPara(1)">&larr; Reiniciar</button>
+        <button class="btn btn-whatsapp btn-lg" onclick="abrirWhatsApp()">
+          💬 Agendar Consultoria
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /step4 -->
+
+</div><!-- /container -->
+
+<footer>
+  © 2025 <span id="footerNome">[NOME DA EMPRESA]</span>. Todos os direitos reservados.
+</footer>
+
+<!-- ====================================================================
+     JAVASCRIPT
+==================================================================== -->
+<script>
+
+/* =====================================================
+   ⚙️  CONFIGURAÇÕES — EDITE ANTES DE PUBLICAR
+===================================================== */
+const CFG = {
+  // WhatsApp: DDI + DDD + número (só dígitos)
+  WHATSAPP: '5511999999999',
+
+  // Nome da empresa (aparece no site e nos e-mails)
+  NOME: '[NOME DA EMPRESA]',
+};
+
+/* =====================================================
+   BENCHMARKS POR SEGMENTO
+   margemMin: margem mínima saudável (%)
+   margemBom: margem boa (%)
+   endividMax: % máx saudável (passivo/fat_anual*100)
+   estoqueMax: % máx saudável (estoque/fat_anual*100)
+===================================================== */
+const BENCH = {
+  comercio:    { margemMin: 3,  margemBom: 8,  endividMax: 60, estoqueMax: 30, nome: 'Comércio' },
+  industria:   { margemMin: 6,  margemBom: 14, endividMax: 70, estoqueMax: 40, nome: 'Indústria' },
+  servicos:    { margemMin: 12, margemBom: 22, endividMax: 50, estoqueMax: 10, nome: 'Serviços' },
+  agronegocio: { margemMin: 8,  margemBom: 18, endividMax: 65, estoqueMax: 35, nome: 'Agronegócio' },
+};
+
+const REGIME_LABEL = {
+  simples:   'Simples Nacional',
+  presumido: 'Lucro Presumido',
+  real:      'Lucro Real',
+};
+
+/* =====================================================
+   ESTADO
+===================================================== */
+let D = {};
+let charts = {};
+
+/* =====================================================
+   UTILITÁRIOS
+===================================================== */
+function parseMoney(s) {
+  if (!s) return 0;
+  const neg = s.trim().startsWith('-');
+  const v = parseFloat(s.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  return neg ? -v : v;
+}
+function fmt(v) {
+  const a = Math.abs(v);
+  return (v < 0 ? '-R$ ' : 'R$ ') + a.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+}
+function fmtK(v) {
+  const a = Math.abs(v);
+  const p = v < 0 ? '-' : '';
+  if (a >= 1e6) return p + 'R$ ' + (a / 1e6).toFixed(1).replace('.', ',') + 'M';
+  if (a >= 1e3) return p + 'R$ ' + (a / 1e3).toFixed(1).replace('.', ',') + 'K';
+  return fmt(v);
+}
+
+/* =====================================================
+   MÁSCARAS
+===================================================== */
+function applyMask(el, signed) {
+  el.addEventListener('input', function () {
+    const neg = signed && this.value.startsWith('-');
+    let d = this.value.replace(/\D/g, '');
+    if (!d) { this.value = neg ? '-' : ''; return; }
+    const n = parseInt(d) / 100;
+    this.value = (neg ? '-' : '') + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  });
+  if (signed) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === '-' && !this.value.startsWith('-')) { e.preventDefault(); this.value = '-' + this.value; }
+      if (e.key === 'Backspace' && this.value === '-')  { e.preventDefault(); this.value = ''; }
+    });
+  }
+}
+document.querySelectorAll('.money').forEach(el => applyMask(el, false));
+document.querySelectorAll('.money-signed').forEach(el => applyMask(el, true));
+
+document.getElementById('whatsapp').addEventListener('input', function () {
+  let v = this.value.replace(/\D/g, '');
+  this.value = v.length <= 10
+    ? v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3')
+    : v.replace(/^(\d{2})(\d{5})(\d{0,4})$/, '($1) $2-$3');
+});
+
+/* =====================================================
+   SELEÇÃO DE RADIO
+===================================================== */
+function selCard(el, name) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.closest('.r-card').classList.remove('selected'));
+  el.classList.add('selected');
+}
+function selInline(el, name) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.closest('.r-inline').classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+/* =====================================================
+   NAVEGAÇÃO
+===================================================== */
+function irPara(p) {
+  const atual = parseInt(document.querySelector('.page.active')?.id?.replace('step', '')) || 1;
+  if (p > atual && !validar(atual)) return;
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.getElementById('step' + p).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  atualizarBarra(p);
+}
+
+function atualizarBarra(ativo) {
+  for (let i = 1; i <= 4; i++) {
+    const s = document.getElementById('seg' + i);
+    s.classList.remove('active', 'done');
+    if (i < ativo)  s.classList.add('done');
+    if (i === ativo) s.classList.add('active');
+  }
+}
+
+/* =====================================================
+   VALIDAÇÃO — PASSO 1
+===================================================== */
+function validar(passo) {
+  if (passo !== 1) return true;
+  let ok = true;
+  function check(id, errId, cond) {
+    const i = document.getElementById(id);
+    const e = document.getElementById(errId);
+    if (cond) { if (i) i.classList.add('has-error'); if (e) e.style.display = 'block'; ok = false; }
+    else       { if (i) i.classList.remove('has-error'); if (e) e.style.display = 'none'; }
+  }
+  check('nome',     'err-nome',     !document.getElementById('nome').value.trim());
+  check('empresa',  'err-empresa',  !document.getElementById('empresa').value.trim());
+  const em = document.getElementById('email').value.trim();
+  check('email',    'err-email',    !em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em));
+  check('whatsapp', 'err-whatsapp', !document.getElementById('whatsapp').value.trim());
+
+  const noSeg = !document.querySelector('input[name="segmento"]:checked');
+  document.getElementById('err-segmento').style.display = noSeg ? 'block' : 'none';
+  if (noSeg) ok = false;
+
+  const noReg = !document.querySelector('input[name="regime"]:checked');
+  document.getElementById('err-regime').style.display = noReg ? 'block' : 'none';
+  if (noReg) ok = false;
+
+  const noDv = !document.querySelector('input[name="divida_range"]:checked');
+  document.getElementById('err-divida-range').style.display = noDv ? 'block' : 'none';
+  if (noDv) ok = false;
+
+  return ok;
+}
+
+/* =====================================================
+   GERAR DIAGNÓSTICO
+===================================================== */
+function gerarDiagnostico() {
+  // Coletar dados
+  D = {
+    nome:        document.getElementById('nome').value.trim(),
+    empresa:     document.getElementById('empresa').value.trim(),
+    email:       document.getElementById('email').value.trim(),
+    whatsapp:    document.getElementById('whatsapp').value.trim(),
+    segmento:    document.querySelector('input[name="segmento"]:checked')?.value || 'comercio',
+    regime:      document.querySelector('input[name="regime"]:checked')?.value || 'simples',
+    dividaRange: document.querySelector('input[name="divida_range"]:checked')?.value || '',
+
+    divBancaria:    parseMoney(document.getElementById('div-bancaria').value),
+    divFornecedor:  parseMoney(document.getElementById('div-fornecedor').value),
+    divTrabalhista: parseMoney(document.getElementById('div-trabalhista').value),
+    impFederal:     parseMoney(document.getElementById('imp-federal').value),
+    impEstadual:    parseMoney(document.getElementById('imp-estadual').value),
+    impMunicipal:   parseMoney(document.getElementById('imp-municipal').value),
+
+    fatAnual:    parseMoney(document.getElementById('fat-anual').value),
+    fatMensal:   parseMoney(document.getElementById('fat-mensal').value),
+    estoque:     parseMoney(document.getElementById('estoque').value),
+    lucro:       parseMoney(document.getElementById('lucro').value),
+    funcionarios:parseInt(document.getElementById('funcionarios').value) || 0,
+  };
+
+  const bench = BENCH[D.segmento] || BENCH.comercio;
+
+  // Cálculos
+  D.passivo     = D.divBancaria + D.divFornecedor + D.divTrabalhista + D.impFederal + D.impEstadual + D.impMunicipal;
+  D.margem      = D.fatMensal > 0 ? (D.lucro / D.fatMensal * 100) : 0;
+  D.estoquePorc = D.fatAnual  > 0 ? (D.estoque  / D.fatAnual  * 100) : 0;
+  D.endividPct  = D.fatAnual  > 0 ? (D.passivo  / D.fatAnual  * 100) : 0;
+  D.bancPct     = D.passivo   > 0 ? (D.divBancaria / D.passivo * 100) : 0;
+  D.impPct      = D.passivo   > 0 ? ((D.impFederal + D.impEstadual + D.impMunicipal) / D.passivo * 100) : 0;
+  D.trabPct     = D.passivo   > 0 ? (D.divTrabalhista / D.passivo * 100) : 0;
+  D.bench       = bench;
+
+  // Score de saúde (0–100)
+  D.score = calcScore(D, bench);
+
+  // Preencher relatório
+  preencherRelatorio(bench);
+
+  // Navegar
+  irPara(4);
+
+  // Enviar e-mails
+  enviarEmails();
+}
+
+/* =====================================================
+   CÁLCULO DO SCORE 0–100
+===================================================== */
+function calcScore(d, b) {
+  let pts = 0;
+
+  // 1. Margem de lucro (0–30 pts)
+  if      (d.margem >= b.margemBom)              pts += 30;
+  else if (d.margem >= b.margemMin)              pts += 20;
+  else if (d.margem >= 0)                        pts += 10;
+  // negativa = 0
+
+  // 2. Nível de endividamento (0–30 pts)
+  if      (d.endividPct <= b.endividMax * 0.5)   pts += 30;
+  else if (d.endividPct <= b.endividMax)          pts += 20;
+  else if (d.endividPct <= b.endividMax * 1.5)   pts += 10;
+  // > 150% = 0
+
+  // 3. Estoque / faturamento (0–20 pts)
+  if      (d.estoquePorc <= b.estoqueMax * 0.5)  pts += 20;
+  else if (d.estoquePorc <= b.estoqueMax)         pts += 13;
+  else if (d.estoquePorc <= b.estoqueMax * 1.5)  pts += 6;
+
+  // 4. Resultado mensal (0–20 pts)
+  if      (d.lucro > 0 && d.endividPct < 50)     pts += 20;
+  else if (d.lucro > 0)                           pts += 13;
+  else if (d.lucro === 0)                         pts += 5;
+
+  return Math.min(100, Math.max(0, pts));
+}
+
+/* =====================================================
+   PREENCHIMENTO DO RELATÓRIO
+===================================================== */
+function preencherRelatorio(bench) {
+  // Header
+  document.getElementById('report-title').textContent    = 'Dashboard — ' + D.empresa;
+  document.getElementById('report-date').textContent     = new Date().toLocaleDateString('pt-BR');
+  const tags = document.getElementById('report-tags');
+  tags.innerHTML = `
+    <span class="report-tag">${bench.nome}</span>
+    <span class="report-tag">${REGIME_LABEL[D.regime]}</span>
+    <span class="report-tag">${D.dividaRange}</span>`;
+
+  // Gauge
+  renderGauge(D.score);
+
+  // KPIs
+  document.getElementById('kpi-passivo').textContent = fmtK(D.passivo);
+  document.getElementById('kpi-fat').textContent     = fmtK(D.fatAnual);
+  const mEl = document.getElementById('kpi-margem');
+  mEl.textContent  = D.margem.toFixed(1) + '%';
+  mEl.className    = 'kpi-val ' + (D.margem >= bench.margemMin ? 'cv-green' : D.margem >= 0 ? 'cv-amber' : 'cv-red');
+  document.getElementById('kpi-func').textContent    = D.funcionarios;
+
+  // Gráficos
+  renderGraficoPassivo();
+  renderGraficoComparativo();
+
+  // Indicadores
+  renderIndicadores(bench);
+
+  // Próximos Passos
+  renderProximosPassos(bench);
+
+  // Resumo
+  renderResumo(bench);
+
+  // Footer
+  document.getElementById('footerNome').textContent = CFG.NOME;
+}
+
+/* =====================================================
+   GAUGE SVG ANIMADO
+===================================================== */
+function renderGauge(score) {
+  const scoreEl = document.getElementById('scoreNum');
+  const lblEl   = document.getElementById('scoreLbl');
+  const arcEl   = document.getElementById('gaugeArc');
+
+  // Cor por score
+  let cor, lbl;
+  if      (score >= 75) { cor = '#1DB87A'; lbl = 'Saudável'; }
+  else if (score >= 55) { cor = '#85C83E'; lbl = 'Razoável'; }
+  else if (score >= 35) { cor = '#E8A020'; lbl = 'Atenção'; }
+  else                  { cor = '#C0392B'; lbl = 'Crítico'; }
+
+  scoreEl.textContent = score;
+  lblEl.textContent   = lbl;
+  arcEl.setAttribute('stroke', cor);
+
+  // Animar o arco: semicírculo de 180° (M 20 80 → A 60 60 0 0 1 140 80)
+  // score 0–100 mapeia para ângulo π→0 (esquerda para direita)
+  const cx = 80, cy = 80, r = 60;
+
+  // Animar de 0 para score
+  let current = 0;
+  const interval = setInterval(() => {
+    current = Math.min(current + 2, score);
+    const a  = Math.PI * (1 - current / 100); // π (esq) → 0 (dir)
+    const ex = cx + r * Math.cos(a);
+    const ey = cy - r * Math.sin(a);
+    arcEl.setAttribute('d', `M 20 80 A ${r} ${r} 0 0 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`);
+    scoreEl.textContent = current;
+    if (current >= score) clearInterval(interval);
+  }, 16);
+}
+
+/* =====================================================
+   GRÁFICO PIZZA — PASSIVO
+===================================================== */
+const CORES = ['#0A7B5C','#B7770D','#1A2E23','#6EBF9A','#9CA3AF'];
+
+function renderGraficoPassivo() {
+  if (charts.passivo) charts.passivo.destroy();
+  const labels = ['Bancárias','Fornecedores','Trabalhistas','Imp. Federais','Imp. Est./Mun.'];
+  const values = [D.divBancaria, D.divFornecedor, D.divTrabalhista, D.impFederal, D.impEstadual + D.impMunicipal];
+  const ctx = document.getElementById('chartPassivo').getContext('2d');
+  charts.passivo = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: CORES, borderWidth: 3, borderColor: '#fff', hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } },
+  });
+  const leg = document.getElementById('legendPassivo');
+  leg.innerHTML = labels.map((l, i) => {
+    const pct = D.passivo > 0 ? (values[i] / D.passivo * 100).toFixed(1) : '0.0';
+    return `<div class="legend-row">
+      <span class="legend-left"><span class="leg-dot" style="background:${CORES[i]}"></span>${l}</span>
+      <span class="legend-right">${fmtK(values[i])}<span class="legend-pct">${pct}%</span></span>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================
+   GRÁFICO BARRAS — COMPARATIVO
+===================================================== */
+function renderGraficoComparativo() {
+  if (charts.compare) charts.compare.destroy();
+  const ctx = document.getElementById('chartCompare').getContext('2d');
+  charts.compare = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Fat. Anual', 'Fat. Mensal', 'Passivo Total'],
+      datasets: [{ data: [D.fatAnual, D.fatMensal, D.passivo],
+        backgroundColor: ['rgba(10,123,92,.85)', 'rgba(29,184,122,.85)', 'rgba(192,57,43,.85)'],
+        borderRadius: 8, borderSkipped: false }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => fmtK(v), font: { size: 10, family: 'Inter' } }, grid: { color: '#F2F6F4' } },
+        x: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' } } },
+      },
+    },
+  });
+}
+
+/* =====================================================
+   INDICADORES COM BENCHMARK
+===================================================== */
+function renderIndicadores(b) {
+  const indicadores = [
+    {
+      nome:   'Margem de Lucro',
+      meta:   `Benchmark ${b.nome}: ≥ ${b.margemMin}% (ideal: ${b.margemBom}%)`,
+      val:    D.margem.toFixed(1) + '%',
+      pct:    Math.min(100, Math.max(0, D.margem / b.margemBom * 100)),
+      cor:    D.margem >= b.margemBom ? '#0A7B5C' : D.margem >= b.margemMin ? '#B7770D' : '#C0392B',
+      badge:  D.margem >= b.margemBom ? 'Excelente' : D.margem >= b.margemMin ? 'Adequado' : D.margem >= 0 ? 'Abaixo' : 'Prejuízo',
+      bcls:   D.margem >= b.margemBom ? 'b-green' : D.margem >= b.margemMin ? 'b-amber' : 'b-red',
+    },
+    {
+      nome:   'Nível de Endividamento',
+      meta:   `Limite saudável (${b.nome}): ≤ ${b.endividMax}% do fat. anual`,
+      val:    D.endividPct.toFixed(1) + '% do fat. anual',
+      pct:    Math.min(100, D.endividPct / b.endividMax * 80),
+      cor:    D.endividPct <= b.endividMax * 0.5 ? '#0A7B5C' : D.endividPct <= b.endividMax ? '#B7770D' : '#C0392B',
+      badge:  D.endividPct <= b.endividMax * 0.5 ? 'Saudável' : D.endividPct <= b.endividMax ? 'Moderado' : D.endividPct <= b.endividMax * 1.5 ? 'Alto' : 'Crítico',
+      bcls:   D.endividPct <= b.endividMax * 0.5 ? 'b-green' : D.endividPct <= b.endividMax ? 'b-amber' : 'b-red',
+    },
+    {
+      nome:   'Estoque / Faturamento',
+      meta:   `Referência (${b.nome}): ≤ ${b.estoqueMax}% do fat. anual`,
+      val:    D.estoquePorc.toFixed(1) + '% do fat. anual',
+      pct:    Math.min(100, D.estoquePorc / b.estoqueMax * 80),
+      cor:    D.estoquePorc <= b.estoqueMax ? '#0A7B5C' : D.estoquePorc <= b.estoqueMax * 1.5 ? '#B7770D' : '#C0392B',
+      badge:  D.estoquePorc <= b.estoqueMax ? 'Adequado' : D.estoquePorc <= b.estoqueMax * 1.5 ? 'Elevado' : 'Excessivo',
+      bcls:   D.estoquePorc <= b.estoqueMax ? 'b-green' : D.estoquePorc <= b.estoqueMax * 1.5 ? 'b-amber' : 'b-red',
+    },
+  ];
+
+  document.getElementById('indicadores').innerHTML = indicadores.map(ind => `
+    <div class="ind-row">
+      <div class="ind-name">${ind.nome}</div>
+      <div class="ind-bar-wrap">
+        <div class="ind-track">
+          <div class="ind-fill" style="width:${ind.pct}%;background:${ind.cor}"></div>
+        </div>
+        <div class="ind-meta">${ind.val} &nbsp;·&nbsp; ${ind.meta}</div>
+      </div>
+      <span class="badge ${ind.bcls}">${ind.badge}</span>
+    </div>`).join('');
+}
+
+/* =====================================================
+   PRÓXIMOS PASSOS RECOMENDADOS
+===================================================== */
+function renderProximosPassos(b) {
+  const passos = [];
+
+  // Regras de prioridade
+  if (D.endividPct > b.endividMax * 1.5) {
+    passos.push({
+      prioridade: 'ALTA', cls: 'p-alta', ptag: 'pt-alta',
+      titulo: 'Reestruturação financeira urgente',
+      desc: `Seu endividamento de ${D.endividPct.toFixed(0)}% do faturamento anual está muito acima do limite saudável para o setor (${b.endividMax}%). Busque assessoria especializada para reestruturar o passivo imediatamente.`,
+    });
+  }
+
+  if (D.bancPct > 40) {
+    passos.push({
+      prioridade: 'ALTA', cls: 'p-alta', ptag: 'pt-alta',
+      titulo: 'Renegociação de dívidas bancárias',
+      desc: `${D.bancPct.toFixed(0)}% do seu passivo é bancário (${fmtK(D.divBancaria)}). Priorize renegociar taxas e prazos com os bancos credores — pode reduzir significativamente a pressão de caixa mensal.`,
+    });
+  }
+
+  if (D.margem < 0) {
+    passos.push({
+      prioridade: 'ALTA', cls: 'p-alta', ptag: 'pt-alta',
+      titulo: 'Revisão urgente de custos e precificação',
+      desc: `A empresa está operando com prejuízo de ${fmt(Math.abs(D.lucro))}/mês. Faça um mapeamento completo dos custos fixos e variáveis e revise a precificação dos seus produtos/serviços.`,
+    });
+  }
+
+  if (D.impPct > 30) {
+    passos.push({
+      prioridade: 'MÉDIA', cls: 'p-media', ptag: 'pt-media',
+      titulo: 'Planejamento tributário',
+      desc: `Impostos representam ${D.impPct.toFixed(0)}% do passivo total (${fmtK(D.impFederal + D.impEstadual + D.impMunicipal)}). Avalie possibilidades de parcelamento (REFIS/PERT) e revise se o regime ${REGIME_LABEL[D.regime]} é o mais vantajoso para o perfil da empresa.`,
+    });
+  }
+
+  if (D.estoquePorc > b.estoqueMax * 1.2) {
+    passos.push({
+      prioridade: 'MÉDIA', cls: 'p-media', ptag: 'pt-media',
+      titulo: 'Redução e otimização do estoque',
+      desc: `O estoque representa ${D.estoquePorc.toFixed(0)}% do faturamento anual, acima do limite de ${b.estoqueMax}% para ${b.nome}. Implemente giro de estoque mais eficiente para liberar capital de giro.`,
+    });
+  }
+
+  if (D.trabPct > 15) {
+    passos.push({
+      prioridade: 'MÉDIA', cls: 'p-media', ptag: 'pt-media',
+      titulo: 'Regularização de passivo trabalhista',
+      desc: `Dívidas trabalhistas representam ${D.trabPct.toFixed(0)}% do passivo (${fmtK(D.divTrabalhista)}). Avalie acordos e parcelamentos — passivos trabalhistas podem gerar multas e execuções rápidas.`,
+    });
+  }
+
+  if (D.margem >= b.margemMin && D.margem < b.margemBom) {
+    passos.push({
+      prioridade: 'BAIXA', cls: 'p-baixa', ptag: 'pt-baixa',
+      titulo: 'Otimização da margem de lucro',
+      desc: `Sua margem de ${D.margem.toFixed(1)}% está adequada, mas abaixo do ideal para ${b.nome} (${b.margemBom}%). Analise oportunidades de redução de custos variáveis e aumento de ticket médio.`,
+    });
+  }
+
+  if (passos.length === 0) {
+    passos.push({
+      prioridade: 'BAIXA', cls: 'p-baixa', ptag: 'pt-baixa',
+      titulo: 'Manter e fortalecer a saúde financeira',
+      desc: `Os indicadores da empresa estão dentro dos parâmetros saudáveis para ${b.nome}. O foco agora é manutenção, crescimento sustentável e construção de reservas de capital.`,
+    });
+  }
+
+  // Limitar a 5
+  const lista = passos.slice(0, 5);
+  document.getElementById('proximosPassos').innerHTML = lista.map((p, i) => `
+    <div class="next-step">
+      <div class="step-priority ${p.cls}">${i + 1}</div>
+      <div class="step-content">
+        <div class="step-title">
+          ${p.titulo}
+          <span class="priority-tag ${p.ptag}">${p.prioridade}</span>
+        </div>
+        <div class="step-desc">${p.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+/* =====================================================
+   RESUMO TEXTUAL
+===================================================== */
+function renderResumo(b) {
+  let t = '';
+  const e = D.empresa;
+
+  if (D.score >= 75)       t += `A ${e} apresenta saúde financeira sólida (score ${D.score}/100), com indicadores dentro dos parâmetros do setor de ${b.nome}. `;
+  else if (D.score >= 55)  t += `A ${e} está em situação financeira razoável (score ${D.score}/100), com alguns pontos de melhoria em relação aos benchmarks de ${b.nome}. `;
+  else if (D.score >= 35)  t += `A ${e} está em situação de atenção (score ${D.score}/100) — múltiplos indicadores abaixo do esperado para ${b.nome}. `;
+  else                     t += `A ${e} está em situação financeira crítica (score ${D.score}/100), exigindo ação imediata e especializada. `;
+
+  if (D.margem < 0)        t += `O prejuízo mensal de ${fmt(Math.abs(D.lucro))} é o ponto mais urgente a ser endereçado. `;
+  else if (D.endividPct > b.endividMax) t += `O nível de endividamento de ${D.endividPct.toFixed(0)}% do faturamento anual requer atenção prioritária. `;
+
+  t += `Nossa equipe está pronta para elaborar um plano de ação personalizado para a sua realidade.`;
+  document.getElementById('resumoTexto').textContent = t;
+}
+
+/* =====================================================
+   WHATSAPP
+===================================================== */
+function abrirWhatsApp() {
+  const msg = encodeURIComponent(
+    `Olá! Acabei de preencher o Diagnóstico Financeiro.\n\n` +
+    `*Empresa:* ${D.empresa || '—'}\n` +
+    `*Segmento:* ${D.bench?.nome || '—'}\n` +
+    `*Passivo Total:* ${fmt(D.passivo || 0)}\n` +
+    `*Faturamento Anual:* ${fmt(D.fatAnual || 0)}\n` +
+    `*Margem de Lucro:* ${(D.margem || 0).toFixed(1)}%\n` +
+    `*Índice de Saúde:* ${D.score}/100\n\n` +
+    `Gostaria de agendar uma consultoria.`
+  );
+  window.open(`https://wa.me/${CFG.WHATSAPP}?text=${msg}`, '_blank');
+}
+
+/* =====================================================
+   ENVIO DE E-MAILS via Backend (Vercel + Brevo)
+===================================================== */
+async function enviarEmails() {
+  const payload = {
+    nomeContato:  D.nome,
+    emailCliente: D.email,
+    telefone:     D.whatsapp,
+    nomeEmpresa:  D.empresa,
+    segmento:     D.bench?.nome,
+    regime:       REGIME_LABEL[D.regime],
+    score:        D.score,
+    faturamento:  D.fatMensal,
+    lucro:        D.lucro,
+    passivoTotal: D.passivo,
+    margem:       D.margem,
+    endividPct:   D.endividPct,
+    estoquePorc:  D.estoquePorc,
+    funcionarios: D.funcionarios,
+    proximosPassos: D.proximosPassos || [],
+  };
+
+  try {
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      console.warn('Erro ao enviar e-mail:', err);
+    }
+  } catch (e) {
+    console.warn('Falha na requisição de e-mail:', e);
+  }
+}
+
+/* =====================================================
+   INICIALIZAÇÃO
+===================================================== */
+document.getElementById('footerNome').textContent = CFG.NOME;
+document.querySelector('.logo').innerHTML = `<span class="logo-dot"></span>${CFG.NOME}`;
+
+</script>
+</body>
+</html>
