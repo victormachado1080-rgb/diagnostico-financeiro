@@ -217,7 +217,7 @@ function htmlEmpresa(d, cfg) {
 
 // ── Enviar via Brevo ─────────────────────────────────────────
 
-async function enviarEmail({ to, toName, subject, html, remetente }) {
+async function enviarEmail({ to, toName, subject, html, remetente, attachment }) {
   const res = await fetch(BREVO_API, {
     method: 'POST',
     headers: {
@@ -230,6 +230,7 @@ async function enviarEmail({ to, toName, subject, html, remetente }) {
       to: [{ email: to, name: toName || to }],
       subject,
       htmlContent: html,
+      ...(attachment ? { attachment: [{ content: attachment, name: 'diagnostico-financeiro.pdf' }] } : {}),
     }),
   });
 
@@ -266,6 +267,8 @@ module.exports = async function handler(req, res) {
 
     const remetente = { nome: cfg.nomeEmpresa, email: cfg.emailEmpresa };
 
+    const pdf = d.pdfBase64 || null;
+
     // 1️⃣ E-mail para o CLIENTE
     await enviarEmail({
       to: d.emailCliente,
@@ -273,6 +276,7 @@ module.exports = async function handler(req, res) {
       subject: `Seu Diagnóstico Financeiro — ${cfg.nomeEmpresa}`,
       html: htmlCliente(d, cfg),
       remetente,
+      attachment: pdf,
     });
 
     // 2️⃣ E-mail para a EMPRESA
@@ -282,6 +286,7 @@ module.exports = async function handler(req, res) {
       subject: `🔔 Novo Lead: ${d.nomeContato || d.emailCliente} (Score ${d.score})`,
       html: htmlEmpresa(d, cfg),
       remetente,
+      attachment: pdf,
     });
 
     return res.status(200).json({ ok: true, mensagem: 'E-mails enviados com sucesso.' });
