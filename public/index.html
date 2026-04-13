@@ -9,7 +9,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <!-- e-mails enviados via backend Vercel + Brevo -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
   /* ==========================================================
@@ -1826,41 +1825,188 @@ function abrirWhatsApp() {
 async function gerarPDFBase64() {
   try {
     const { jsPDF } = window.jspdf;
-    const el = document.getElementById('step4');
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, H = 297, pad = 14;
 
-    // Oculta botões para não aparecerem no PDF
-    const btns = el.querySelectorAll('.btn, button');
-    btns.forEach(b => { b._vis = b.style.visibility; b.style.visibility = 'hidden'; });
+    // Captura os gráficos reais do Chart.js
+    const canvasPassivo  = document.getElementById('chartPassivo');
+    const canvasCompare  = document.getElementById('chartCompare');
+    const imgPassivo     = canvasPassivo  ? canvasPassivo.toDataURL('image/png')  : null;
+    const imgCompare     = canvasCompare  ? canvasCompare.toDataURL('image/png')  : null;
 
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#F2F6F4',
-      logging: false,
-      ignoreElements: el => el.classList && (el.classList.contains('btn') || el.tagName === 'BUTTON'),
+    // ── Cores ──
+    const VERDE_ESC = [10,31,20], VERDE=[10,123,92], VERDE_CLR=[29,184,122];
+    const CINZA=[240,244,242], CINZA2=[220,228,224], TEXTO=[13,31,23];
+    const MUTED=[107,136,120], BRANCO=[255,255,255];
+    const VERMELHO=[192,57,43], AMARELO=[183,119,13];
+
+    function corScore(s){ return s>=75?[29,184,122]:s>=55?[133,200,62]:s>=35?[232,160,32]:[192,57,43]; }
+    function lblScore(s){ return s>=75?'Saudável':s>=55?'Razoável':s>=35?'Atenção':'Crítico'; }
+    function fmtK(v){ const n=Math.abs(v||0); if(n>=1e6) return 'R$ '+(v/1e6).toFixed(1).replace('.',',')+' M'; if(n>=1e3) return 'R$ '+(v/1e3).toFixed(1).replace('.',',')+' K'; return 'R$ '+(v||0).toFixed(0); }
+    function pct(v){ return Number(v||0).toFixed(1)+'%'; }
+
+    let y = 0;
+
+    // ══ CABEÇALHO ══
+    doc.setFillColor(...VERDE_ESC);
+    doc.rect(0, 0, W, 40, 'F');
+    doc.setTextColor(...BRANCO);
+    doc.setFontSize(20); doc.setFont(undefined,'bold');
+    doc.text('Machado Filhos', pad, 13);
+    doc.setFontSize(9); doc.setFont(undefined,'normal');
+    doc.setTextColor(180,210,195);
+    doc.text('Diagnóstico Financeiro Empresarial', pad, 20);
+    doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}), pad, 27);
+
+    // Tags
+    const tags = [D.bench?.nome, (D.regime==='simples'?'Simples Nacional':D.regime==='presumido'?'Lucro Presumido':'Lucro Real'), D.dividaRange].filter(Boolean);
+    let tx = pad;
+    doc.setFontSize(7.5);
+    tags.forEach(tag => {
+      const tw = doc.getTextWidth(tag)+6;
+      doc.setDrawColor(...VERDE_CLR); doc.setLineWidth(0.4);
+      doc.roundedRect(tx,32,tw,5.5,1,1,'S');
+      doc.setTextColor(...VERDE_CLR);
+      doc.text(tag, tx+3, 36.2);
+      tx += tw+4;
     });
 
-    // Restaura botões
-    btns.forEach(b => { b.style.visibility = b._vis || ''; });
+    // Score círculo
+    const sc = D.score||0;
+    doc.setFillColor(...corScore(sc));
+    doc.circle(W-26, 20, 13, 'F');
+    doc.setTextColor(...BRANCO);
+    doc.setFontSize(16); doc.setFont(undefined,'bold');
+    doc.text(String(sc), W-26, 22, {align:'center'});
+    doc.setFontSize(7.5); doc.setFont(undefined,'normal');
+    doc.text(lblScore(sc), W-26, 28, {align:'center'});
+    doc.setFontSize(6); doc.setTextColor(180,210,195);
+    doc.text('ÍNDICE DE SAÚDE', W-26, 35, {align:'center'});
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.82);
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = 210, pageH = 297;
-    const imgW  = pageW;
-    const imgH  = (canvas.height * pageW) / canvas.width;
+    y = 46;
 
-    let posY = 0, restante = imgH;
-    pdf.addImage(imgData, 'JPEG', 0, posY, imgW, imgH);
-    restante -= pageH;
+    // ══ KPI CARDS ══
+    const kpis = [
+      {label:'PASSIVO TOTAL',    val:fmtK(D.passivo),  cor:VERMELHO},
+      {label:'FATURAMENTO ANUAL',val:fmtK(D.fatAnual), cor:VERDE},
+      {label:'MARGEM DE LUCRO',  val:pct(D.margem),    cor:D.margem>=(D.bench?.margemMin||0)?VERDE:VERMELHO},
+      {label:'FUNCIONÁRIOS',     val:String(D.funcionarios||0), cor:TEXTO},
+    ];
+    const kW = (W-pad*2-9)/4;
+    kpis.forEach((k,i) => {
+      const kx = pad+i*(kW+3);
+      doc.setFillColor(...CINZA);
+      doc.roundedRect(kx,y,kW,17,2,2,'F');
+      doc.setDrawColor(...k.cor); doc.setLineWidth(0.9);
+      doc.line(kx+2,y,kx+kW-2,y);
+      doc.setFontSize(6); doc.setFont(undefined,'normal'); doc.setTextColor(...MUTED);
+      doc.text(k.label, kx+kW/2, y+6, {align:'center'});
+      doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.setTextColor(...k.cor);
+      doc.text(k.val, kx+kW/2, y+13, {align:'center'});
+    });
+    y += 22;
 
-    while (restante > 0) {
-      pdf.addPage();
-      posY = restante - imgH;
-      pdf.addImage(imgData, 'JPEG', 0, posY, imgW, imgH);
-      restante -= pageH;
+    // ══ GRÁFICOS (canvas reais do Chart.js) ══
+    const colW = (W-pad*2-6)/2;
+    const grafH = 50;
+
+    // Box Composição do Passivo
+    doc.setFillColor(...CINZA);
+    doc.roundedRect(pad, y, colW, grafH+10, 2,2,'F');
+    doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.setTextColor(...TEXTO);
+    doc.text('COMPOSIÇÃO DO PASSIVO', pad+4, y+6);
+    if (imgPassivo) {
+      doc.addImage(imgPassivo, 'PNG', pad+2, y+8, colW-4, grafH);
     }
 
-    return pdf.output('datauristring').split(',')[1];
+    // Box Faturamento vs Passivo
+    const bx = pad+colW+6;
+    doc.setFillColor(...CINZA);
+    doc.roundedRect(bx, y, colW, grafH+10, 2,2,'F');
+    doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.setTextColor(...TEXTO);
+    doc.text('FATURAMENTO VS PASSIVO', bx+4, y+6);
+    if (imgCompare) {
+      doc.addImage(imgCompare, 'PNG', bx+2, y+8, colW-4, grafH);
+    }
+    y += grafH+16;
+
+    // ══ BENCHMARK ══
+    doc.setFillColor(...CINZA);
+    doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
+    doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...VERDE_ESC);
+    doc.text('INDICADORES — BENCHMARK DO SETOR', pad+3, y+4.2);
+    y += 9;
+
+    const bench = D.bench||{};
+    [
+      {label:'Margem de Lucro',       val:pct(D.margem),      ref:`Benchmark ${bench.nome||''}: ≥${bench.margemMin||0}% (ideal:${bench.margemBom||0}%)`, ratio:D.margem/(bench.margemBom||1), ok:D.margem>=(bench.margemMin||0), excelente:D.margem>=(bench.margemBom||0)},
+      {label:'Nível de Endividamento', val:pct(D.endividPct),  ref:`Limite saudável: ≤${bench.endividMax||0}% do fat. anual`,                             ratio:D.endividPct/(bench.endividMax||1), ok:D.endividPct<=(bench.endividMax||100), alto:D.endividPct>(bench.endividMax||100)},
+      {label:'Estoque / Faturamento',  val:pct(D.estoquePorc), ref:`Referência: ≤${bench.estoqueMax||0}% do fat. anual`,                                  ratio:D.estoquePorc/(bench.estoqueMax||1), ok:D.estoquePorc<=(bench.estoqueMax||100)},
+    ].forEach(item => {
+      doc.setFontSize(8.5); doc.setFont(undefined,'bold'); doc.setTextColor(...TEXTO);
+      doc.text(item.label, pad, y+4);
+      const barX=pad+48, barW=W-pad*2-80;
+      doc.setFillColor(...CINZA2); doc.roundedRect(barX,y+1,barW,4,1,1,'F');
+      const fillCor = item.alto?VERMELHO:item.ok?VERDE:AMARELO;
+      doc.setFillColor(...fillCor);
+      doc.roundedRect(barX,y+1,Math.max(Math.min(item.ratio,1)*barW,1),4,1,1,'F');
+      doc.setFontSize(6.5); doc.setFont(undefined,'normal'); doc.setTextColor(...MUTED);
+      doc.text(item.val+' · '+item.ref, barX, y+9);
+      const status = item.alto?'ALTO':item.excelente?'EXCELENTE':item.ok?'ADEQUADO':'MODERADO';
+      doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...fillCor);
+      doc.text(status, W-pad, y+4, {align:'right'});
+      y += 14;
+    });
+    y += 4;
+
+    // ══ PRÓXIMOS PASSOS ══
+    if (D.proximosPassos?.length) {
+      if (y>220){doc.addPage();y=16;}
+      doc.setFillColor(...CINZA);
+      doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
+      doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...VERDE_ESC);
+      doc.text('PRÓXIMOS PASSOS RECOMENDADOS', pad+3, y+4.2);
+      y += 10;
+      D.proximosPassos.forEach((p,i) => {
+        if(y>265){doc.addPage();y=16;}
+        doc.setFillColor(...AMARELO);
+        doc.circle(pad+3,y+3,3,'F');
+        doc.setFontSize(7); doc.setFont(undefined,'bold'); doc.setTextColor(...BRANCO);
+        doc.text(String(i+1),pad+3,y+4.2,{align:'center'});
+        doc.setFontSize(8.5); doc.setFont(undefined,'normal'); doc.setTextColor(...TEXTO);
+        const linhas=doc.splitTextToSize(p,W-pad*2-12);
+        doc.text(linhas,pad+9,y+4);
+        y+=linhas.length*5+6;
+      });
+    }
+
+    // ══ ANÁLISE RESUMIDA ══
+    const resumoTxt = document.getElementById('resumoTexto')?.textContent||'';
+    if (resumoTxt) {
+      if(y>240){doc.addPage();y=16;}
+      doc.setFillColor(...VERDE_ESC);
+      doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
+      doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...VERDE_CLR);
+      doc.text('ANÁLISE RESUMIDA', pad+3, y+4.2);
+      y += 9;
+      doc.setFontSize(8.5); doc.setFont(undefined,'normal'); doc.setTextColor(...TEXTO);
+      const rL=doc.splitTextToSize(resumoTxt,W-pad*2);
+      if(y+rL.length*5>270){doc.addPage();y=16;}
+      doc.text(rL,pad,y);
+    }
+
+    // ══ RODAPÉ ══
+    for(let pg=1;pg<=doc.getNumberOfPages();pg++){
+      doc.setPage(pg);
+      doc.setFillColor(...VERDE_ESC);
+      doc.rect(0,H-10,W,10,'F');
+      doc.setFontSize(7); doc.setFont(undefined,'normal'); doc.setTextColor(180,210,195);
+      doc.text('© Machado Filhos Advogados Associados — Todos os direitos reservados',W/2,H-4,{align:'center'});
+      doc.setTextColor(...VERDE_CLR);
+      doc.text(`Pág. ${pg}/${doc.getNumberOfPages()}`,W-pad,H-4,{align:'right'});
+    }
+
+    return doc.output('datauristring').split(',')[1];
   } catch(e) {
     console.warn('Erro ao gerar PDF:', e);
     return null;
