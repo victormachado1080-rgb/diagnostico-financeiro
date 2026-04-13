@@ -1770,6 +1770,7 @@ function renderProximosPassos(b) {
 
   // Limitar a 5
   const lista = passos.slice(0, 5);
+  D.proximosPassos = lista.map(p => p.titulo + ': ' + p.desc);
   document.getElementById('proximosPassos').innerHTML = lista.map((p, i) => `
     <div class="next-step">
       <div class="step-priority ${p.cls}">${i + 1}</div>
@@ -1822,199 +1823,196 @@ function abrirWhatsApp() {
 /* =====================================================
    ENVIO DE E-MAILS via Backend (Vercel + Brevo)
 ===================================================== */
-async function gerarPDFBase64() {
-  try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210, H = 297, pad = 14;
+function gerarPDFBase64() {
+  // Função robusta — sempre retorna um PDF, nunca null
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, H = 297, pad = 14;
 
-    // Captura os gráficos reais do Chart.js
-    const canvasPassivo  = document.getElementById('chartPassivo');
-    const canvasCompare  = document.getElementById('chartCompare');
-    const imgPassivo     = canvasPassivo  ? canvasPassivo.toDataURL('image/png')  : null;
-    const imgCompare     = canvasCompare  ? canvasCompare.toDataURL('image/png')  : null;
+  // Cores (hardcoded — sem variáveis CSS)
+  const C = {
+    verdeEsc: [10,31,20], verde:[10,123,92], verdeCl:[29,184,122],
+    cinza:[240,244,242], cinza2:[220,228,224], texto:[13,31,23],
+    muted:[107,136,120], branco:[255,255,255],
+    vermelho:[192,57,43], amarelo:[183,119,13], laranja:[232,160,32],
+  };
+  const scoreCor = s => s>=75?C.verdeCl:s>=55?[133,200,62]:s>=35?C.laranja:C.vermelho;
+  const scoreLbl = s => s>=75?'Saudável':s>=55?'Razoável':s>=35?'Atenção':'Crítico';
+  const fmtK = v => { const n=Math.abs(v||0); if(n>=1e6) return 'R$ '+(v/1e6).toFixed(1).replace('.',',')+' M'; if(n>=1e3) return 'R$ '+(v/1e3).toFixed(1).replace('.',',')+' K'; return 'R$ '+Number(v||0).toFixed(0); };
+  const pct  = v => Number(v||0).toFixed(1)+'%';
 
-    // ── Cores ──
-    const VERDE_ESC = [10,31,20], VERDE=[10,123,92], VERDE_CLR=[29,184,122];
-    const CINZA=[240,244,242], CINZA2=[220,228,224], TEXTO=[13,31,23];
-    const MUTED=[107,136,120], BRANCO=[255,255,255];
-    const VERMELHO=[192,57,43], AMARELO=[183,119,13];
+  // Tenta capturar gráficos reais do Chart.js
+  let imgPassivo = null, imgCompare = null;
+  try { const el = document.getElementById('chartPassivo'); if(el) imgPassivo = el.toDataURL('image/png'); } catch(e) {}
+  try { const el = document.getElementById('chartCompare');  if(el) imgCompare  = el.toDataURL('image/png'); } catch(e) {}
 
-    function corScore(s){ return s>=75?[29,184,122]:s>=55?[133,200,62]:s>=35?[232,160,32]:[192,57,43]; }
-    function lblScore(s){ return s>=75?'Saudável':s>=55?'Razoável':s>=35?'Atenção':'Crítico'; }
-    function fmtK(v){ const n=Math.abs(v||0); if(n>=1e6) return 'R$ '+(v/1e6).toFixed(1).replace('.',',')+' M'; if(n>=1e3) return 'R$ '+(v/1e3).toFixed(1).replace('.',',')+' K'; return 'R$ '+(v||0).toFixed(0); }
-    function pct(v){ return Number(v||0).toFixed(1)+'%'; }
+  let y = 0;
 
-    let y = 0;
+  // ── CABEÇALHO ─────────────────────────────────────────
+  doc.setFillColor(...C.verdeEsc); doc.rect(0,0,W,40,'F');
+  doc.setTextColor(...C.branco);
+  doc.setFontSize(20); doc.setFont(undefined,'bold');
+  doc.text('Machado Filhos', pad, 13);
+  doc.setFontSize(9); doc.setFont(undefined,'normal'); doc.setTextColor(180,210,195);
+  doc.text('Diagnóstico Financeiro Empresarial', pad, 20);
+  doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}), pad, 27);
+  const tags = [D.bench?.nome, (D.regime==='simples'?'Simples Nacional':D.regime==='presumido'?'Lucro Presumido':'Lucro Real'), D.dividaRange].filter(Boolean);
+  let tx = pad;
+  doc.setFontSize(7.5);
+  tags.forEach(tag => {
+    const tw = doc.getTextWidth(tag)+6;
+    doc.setDrawColor(...C.verdeCl); doc.setLineWidth(0.4);
+    doc.roundedRect(tx,31,tw,5.5,1,1,'S');
+    doc.setTextColor(...C.verdeCl); doc.text(tag,tx+3,35.2); tx+=tw+4;
+  });
+  const sc = D.score||0;
+  doc.setFillColor(...scoreCor(sc)); doc.circle(W-26,20,13,'F');
+  doc.setTextColor(...C.branco);
+  doc.setFontSize(17); doc.setFont(undefined,'bold'); doc.text(String(sc),W-26,23,{align:'center'});
+  doc.setFontSize(7.5); doc.setFont(undefined,'normal'); doc.text(scoreLbl(sc),W-26,29,{align:'center'});
+  doc.setFontSize(6); doc.setTextColor(180,210,195); doc.text('ÍNDICE DE SAÚDE',W-26,35,{align:'center'});
+  y = 46;
 
-    // ══ CABEÇALHO ══
-    doc.setFillColor(...VERDE_ESC);
-    doc.rect(0, 0, W, 40, 'F');
-    doc.setTextColor(...BRANCO);
-    doc.setFontSize(20); doc.setFont(undefined,'bold');
-    doc.text('Machado Filhos', pad, 13);
-    doc.setFontSize(9); doc.setFont(undefined,'normal');
-    doc.setTextColor(180,210,195);
-    doc.text('Diagnóstico Financeiro Empresarial', pad, 20);
-    doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}), pad, 27);
+  // ── KPI CARDS ─────────────────────────────────────────
+  const kpis = [
+    {label:'PASSIVO TOTAL',    val:fmtK(D.passivo),  cor:C.vermelho},
+    {label:'FATURAMENTO ANUAL',val:fmtK(D.fatAnual), cor:C.verde},
+    {label:'MARGEM DE LUCRO',  val:pct(D.margem),    cor:D.margem>=(D.bench?.margemMin||0)?C.verde:C.vermelho},
+    {label:'FUNCIONÁRIOS',     val:String(D.funcionarios||0), cor:C.texto},
+  ];
+  const kW=(W-pad*2-9)/4;
+  kpis.forEach((k,i)=>{
+    const kx=pad+i*(kW+3);
+    doc.setFillColor(...C.cinza); doc.roundedRect(kx,y,kW,18,2,2,'F');
+    doc.setDrawColor(...k.cor); doc.setLineWidth(1); doc.line(kx+2,y,kx+kW-2,y);
+    doc.setFontSize(6); doc.setFont(undefined,'normal'); doc.setTextColor(...C.muted);
+    doc.text(k.label,kx+kW/2,y+6,{align:'center'});
+    doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.setTextColor(...k.cor);
+    doc.text(k.val,kx+kW/2,y+14,{align:'center'});
+  });
+  y+=23;
 
-    // Tags
-    const tags = [D.bench?.nome, (D.regime==='simples'?'Simples Nacional':D.regime==='presumido'?'Lucro Presumido':'Lucro Real'), D.dividaRange].filter(Boolean);
-    let tx = pad;
-    doc.setFontSize(7.5);
-    tags.forEach(tag => {
-      const tw = doc.getTextWidth(tag)+6;
-      doc.setDrawColor(...VERDE_CLR); doc.setLineWidth(0.4);
-      doc.roundedRect(tx,32,tw,5.5,1,1,'S');
-      doc.setTextColor(...VERDE_CLR);
-      doc.text(tag, tx+3, 36.2);
-      tx += tw+4;
+  // ── GRÁFICOS ──────────────────────────────────────────
+  const colW=(W-pad*2-6)/2, grafH=55;
+  // Box esquerdo
+  doc.setFillColor(...C.cinza); doc.roundedRect(pad,y,colW,grafH+10,2,2,'F');
+  doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.setTextColor(...C.texto);
+  doc.text('COMPOSIÇÃO DO PASSIVO',pad+4,y+7);
+  if (imgPassivo) {
+    doc.addImage(imgPassivo,'PNG',pad+3,y+9,colW-6,grafH);
+  } else {
+    // Fallback: tabela de texto
+    const vals=[D.divBancaria,D.divFornecedor,D.divTrabalhista,D.impFederal,(D.impEstadual||0)+(D.impMunicipal||0)];
+    const lbls=['Bancárias','Fornecedores','Trabalhistas','Imp. Federais','Imp. Est./Mun.'];
+    const cors=[C.verde,C.amarelo,C.vermelho,[133,200,62],C.muted];
+    let ry=y+13;
+    vals.forEach((v,i)=>{
+      doc.setFillColor(...cors[i]); doc.circle(pad+6,ry+1.5,2,'F');
+      doc.setFontSize(7); doc.setFont(undefined,'normal'); doc.setTextColor(...C.muted);
+      doc.text(lbls[i],pad+10,ry+3);
+      doc.setFont(undefined,'bold'); doc.setTextColor(...C.texto);
+      const p=D.passivo>0?(v/D.passivo*100).toFixed(1)+'%':'0%';
+      doc.text(fmtK(v)+'  '+p,pad+colW-2,ry+3,{align:'right'});
+      ry+=9;
     });
-
-    // Score círculo
-    const sc = D.score||0;
-    doc.setFillColor(...corScore(sc));
-    doc.circle(W-26, 20, 13, 'F');
-    doc.setTextColor(...BRANCO);
-    doc.setFontSize(16); doc.setFont(undefined,'bold');
-    doc.text(String(sc), W-26, 22, {align:'center'});
-    doc.setFontSize(7.5); doc.setFont(undefined,'normal');
-    doc.text(lblScore(sc), W-26, 28, {align:'center'});
-    doc.setFontSize(6); doc.setTextColor(180,210,195);
-    doc.text('ÍNDICE DE SAÚDE', W-26, 35, {align:'center'});
-
-    y = 46;
-
-    // ══ KPI CARDS ══
-    const kpis = [
-      {label:'PASSIVO TOTAL',    val:fmtK(D.passivo),  cor:VERMELHO},
-      {label:'FATURAMENTO ANUAL',val:fmtK(D.fatAnual), cor:VERDE},
-      {label:'MARGEM DE LUCRO',  val:pct(D.margem),    cor:D.margem>=(D.bench?.margemMin||0)?VERDE:VERMELHO},
-      {label:'FUNCIONÁRIOS',     val:String(D.funcionarios||0), cor:TEXTO},
-    ];
-    const kW = (W-pad*2-9)/4;
-    kpis.forEach((k,i) => {
-      const kx = pad+i*(kW+3);
-      doc.setFillColor(...CINZA);
-      doc.roundedRect(kx,y,kW,17,2,2,'F');
-      doc.setDrawColor(...k.cor); doc.setLineWidth(0.9);
-      doc.line(kx+2,y,kx+kW-2,y);
-      doc.setFontSize(6); doc.setFont(undefined,'normal'); doc.setTextColor(...MUTED);
-      doc.text(k.label, kx+kW/2, y+6, {align:'center'});
-      doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.setTextColor(...k.cor);
-      doc.text(k.val, kx+kW/2, y+13, {align:'center'});
-    });
-    y += 22;
-
-    // ══ GRÁFICOS (canvas reais do Chart.js) ══
-    const colW = (W-pad*2-6)/2;
-    const grafH = 50;
-
-    // Box Composição do Passivo
-    doc.setFillColor(...CINZA);
-    doc.roundedRect(pad, y, colW, grafH+10, 2,2,'F');
-    doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.setTextColor(...TEXTO);
-    doc.text('COMPOSIÇÃO DO PASSIVO', pad+4, y+6);
-    if (imgPassivo) {
-      doc.addImage(imgPassivo, 'PNG', pad+2, y+8, colW-4, grafH);
-    }
-
-    // Box Faturamento vs Passivo
-    const bx = pad+colW+6;
-    doc.setFillColor(...CINZA);
-    doc.roundedRect(bx, y, colW, grafH+10, 2,2,'F');
-    doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.setTextColor(...TEXTO);
-    doc.text('FATURAMENTO VS PASSIVO', bx+4, y+6);
-    if (imgCompare) {
-      doc.addImage(imgCompare, 'PNG', bx+2, y+8, colW-4, grafH);
-    }
-    y += grafH+16;
-
-    // ══ BENCHMARK ══
-    doc.setFillColor(...CINZA);
-    doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
-    doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...VERDE_ESC);
-    doc.text('INDICADORES — BENCHMARK DO SETOR', pad+3, y+4.2);
-    y += 9;
-
-    const bench = D.bench||{};
-    [
-      {label:'Margem de Lucro',       val:pct(D.margem),      ref:`Benchmark ${bench.nome||''}: ≥${bench.margemMin||0}% (ideal:${bench.margemBom||0}%)`, ratio:D.margem/(bench.margemBom||1), ok:D.margem>=(bench.margemMin||0), excelente:D.margem>=(bench.margemBom||0)},
-      {label:'Nível de Endividamento', val:pct(D.endividPct),  ref:`Limite saudável: ≤${bench.endividMax||0}% do fat. anual`,                             ratio:D.endividPct/(bench.endividMax||1), ok:D.endividPct<=(bench.endividMax||100), alto:D.endividPct>(bench.endividMax||100)},
-      {label:'Estoque / Faturamento',  val:pct(D.estoquePorc), ref:`Referência: ≤${bench.estoqueMax||0}% do fat. anual`,                                  ratio:D.estoquePorc/(bench.estoqueMax||1), ok:D.estoquePorc<=(bench.estoqueMax||100)},
-    ].forEach(item => {
-      doc.setFontSize(8.5); doc.setFont(undefined,'bold'); doc.setTextColor(...TEXTO);
-      doc.text(item.label, pad, y+4);
-      const barX=pad+48, barW=W-pad*2-80;
-      doc.setFillColor(...CINZA2); doc.roundedRect(barX,y+1,barW,4,1,1,'F');
-      const fillCor = item.alto?VERMELHO:item.ok?VERDE:AMARELO;
-      doc.setFillColor(...fillCor);
-      doc.roundedRect(barX,y+1,Math.max(Math.min(item.ratio,1)*barW,1),4,1,1,'F');
-      doc.setFontSize(6.5); doc.setFont(undefined,'normal'); doc.setTextColor(...MUTED);
-      doc.text(item.val+' · '+item.ref, barX, y+9);
-      const status = item.alto?'ALTO':item.excelente?'EXCELENTE':item.ok?'ADEQUADO':'MODERADO';
-      doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...fillCor);
-      doc.text(status, W-pad, y+4, {align:'right'});
-      y += 14;
-    });
-    y += 4;
-
-    // ══ PRÓXIMOS PASSOS ══
-    if (D.proximosPassos?.length) {
-      if (y>220){doc.addPage();y=16;}
-      doc.setFillColor(...CINZA);
-      doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
-      doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...VERDE_ESC);
-      doc.text('PRÓXIMOS PASSOS RECOMENDADOS', pad+3, y+4.2);
-      y += 10;
-      D.proximosPassos.forEach((p,i) => {
-        if(y>265){doc.addPage();y=16;}
-        doc.setFillColor(...AMARELO);
-        doc.circle(pad+3,y+3,3,'F');
-        doc.setFontSize(7); doc.setFont(undefined,'bold'); doc.setTextColor(...BRANCO);
-        doc.text(String(i+1),pad+3,y+4.2,{align:'center'});
-        doc.setFontSize(8.5); doc.setFont(undefined,'normal'); doc.setTextColor(...TEXTO);
-        const linhas=doc.splitTextToSize(p,W-pad*2-12);
-        doc.text(linhas,pad+9,y+4);
-        y+=linhas.length*5+6;
-      });
-    }
-
-    // ══ ANÁLISE RESUMIDA ══
-    const resumoTxt = document.getElementById('resumoTexto')?.textContent||'';
-    if (resumoTxt) {
-      if(y>240){doc.addPage();y=16;}
-      doc.setFillColor(...VERDE_ESC);
-      doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
-      doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...VERDE_CLR);
-      doc.text('ANÁLISE RESUMIDA', pad+3, y+4.2);
-      y += 9;
-      doc.setFontSize(8.5); doc.setFont(undefined,'normal'); doc.setTextColor(...TEXTO);
-      const rL=doc.splitTextToSize(resumoTxt,W-pad*2);
-      if(y+rL.length*5>270){doc.addPage();y=16;}
-      doc.text(rL,pad,y);
-    }
-
-    // ══ RODAPÉ ══
-    for(let pg=1;pg<=doc.getNumberOfPages();pg++){
-      doc.setPage(pg);
-      doc.setFillColor(...VERDE_ESC);
-      doc.rect(0,H-10,W,10,'F');
-      doc.setFontSize(7); doc.setFont(undefined,'normal'); doc.setTextColor(180,210,195);
-      doc.text('© Machado Filhos Advogados Associados — Todos os direitos reservados',W/2,H-4,{align:'center'});
-      doc.setTextColor(...VERDE_CLR);
-      doc.text(`Pág. ${pg}/${doc.getNumberOfPages()}`,W-pad,H-4,{align:'right'});
-    }
-
-    return doc.output('datauristring').split(',')[1];
-  } catch(e) {
-    console.warn('Erro ao gerar PDF:', e);
-    return null;
   }
+  // Box direito
+  const bx=pad+colW+6;
+  doc.setFillColor(...C.cinza); doc.roundedRect(bx,y,colW,grafH+10,2,2,'F');
+  doc.setFontSize(8); doc.setFont(undefined,'bold'); doc.setTextColor(...C.texto);
+  doc.text('FATURAMENTO VS PASSIVO',bx+4,y+7);
+  if (imgCompare) {
+    doc.addImage(imgCompare,'PNG',bx+3,y+9,colW-6,grafH);
+  } else {
+    const bData=[{l:'Fat. Anual',v:D.fatAnual,c:C.verde},{l:'Fat. Mensal',v:D.fatMensal,c:C.verdeCl},{l:'Passivo',v:D.passivo,c:C.vermelho}];
+    const maxV=Math.max(...bData.map(b=>b.v),1);
+    let by=y+14;
+    bData.forEach(b=>{
+      doc.setFontSize(6.5); doc.setFont(undefined,'normal'); doc.setTextColor(...C.muted); doc.text(b.l,bx+4,by);
+      by+=4;
+      const bw=Math.max((b.v/maxV)*(colW-12),2);
+      doc.setFillColor(...b.c); doc.roundedRect(bx+4,by,bw,5,1,1,'F');
+      doc.setFontSize(7); doc.setFont(undefined,'bold'); doc.setTextColor(...C.texto);
+      doc.text(fmtK(b.v),bx+4+bw+2,by+4);
+      by+=10;
+    });
+  }
+  y+=grafH+16;
+
+  // ── BENCHMARK ─────────────────────────────────────────
+  doc.setFillColor(...C.cinza); doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
+  doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...C.verdeEsc);
+  doc.text('INDICADORES — BENCHMARK DO SETOR',pad+3,y+4.2);
+  y+=9;
+  const bench=D.bench||{};
+  [{label:'Margem de Lucro',val:pct(D.margem),ref:`Benchmark ${bench.nome||''}: ≥${bench.margemMin||0}% (ideal:${bench.margemBom||0}%)`,ratio:Math.min(D.margem/(bench.margemBom||1),1),ok:D.margem>=(bench.margemMin||0),excelente:D.margem>=(bench.margemBom||0)},
+   {label:'Nível de Endividamento',val:pct(D.endividPct),ref:`Limite saudável (${bench.nome||''}): ≤${bench.endividMax||0}% do fat. anual`,ratio:Math.min(D.endividPct/(bench.endividMax||1),1),ok:D.endividPct<=(bench.endividMax||100),alto:D.endividPct>(bench.endividMax||100)},
+   {label:'Estoque / Faturamento',val:pct(D.estoquePorc),ref:`Referência (${bench.nome||''}): ≤${bench.estoqueMax||0}% do fat. anual`,ratio:Math.min(D.estoquePorc/(bench.estoqueMax||1),1),ok:D.estoquePorc<=(bench.estoqueMax||100)},
+  ].forEach(item=>{
+    doc.setFontSize(8.5); doc.setFont(undefined,'bold'); doc.setTextColor(...C.texto);
+    doc.text(item.label,pad,y+4);
+    const bX=pad+50,bW=W-pad*2-80,bH=4;
+    doc.setFillColor(...C.cinza2); doc.roundedRect(bX,y+1,bW,bH,1,1,'F');
+    const fc=item.alto?C.vermelho:item.ok?C.verde:C.amarelo;
+    doc.setFillColor(...fc); doc.roundedRect(bX,y+1,Math.max(item.ratio*bW,1),bH,1,1,'F');
+    doc.setFontSize(6.5); doc.setFont(undefined,'normal'); doc.setTextColor(...C.muted);
+    doc.text(item.val+' · '+item.ref,bX,y+9);
+    const status=item.alto?'ALTO':item.excelente?'EXCELENTE':item.ok?'ADEQUADO':'MODERADO';
+    doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...fc);
+    doc.text(status,W-pad,y+4,{align:'right'});
+    y+=14;
+  });
+  y+=4;
+
+  // ── PRÓXIMOS PASSOS ───────────────────────────────────
+  if(D.proximosPassos?.length){
+    if(y>215){doc.addPage();y=16;}
+    doc.setFillColor(...C.cinza); doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
+    doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...C.verdeEsc);
+    doc.text('PRÓXIMOS PASSOS RECOMENDADOS',pad+3,y+4.2);
+    y+=10;
+    D.proximosPassos.forEach((p,i)=>{
+      if(y>262){doc.addPage();y=16;}
+      doc.setFillColor(...C.amarelo); doc.circle(pad+3,y+3,3,'F');
+      doc.setFontSize(7); doc.setFont(undefined,'bold'); doc.setTextColor(...C.branco);
+      doc.text(String(i+1),pad+3,y+4.2,{align:'center'});
+      doc.setFontSize(8.5); doc.setFont(undefined,'normal'); doc.setTextColor(...C.texto);
+      const linhas=doc.splitTextToSize(p,W-pad*2-12);
+      doc.text(linhas,pad+9,y+4);
+      y+=linhas.length*5+7;
+    });
+    y+=2;
+  }
+
+  // ── ANÁLISE RESUMIDA ──────────────────────────────────
+  const resumo=document.getElementById('resumoTexto')?.textContent||'';
+  if(resumo){
+    if(y>240){doc.addPage();y=16;}
+    doc.setFillColor(...C.verdeEsc); doc.roundedRect(pad,y,W-pad*2,6,1,1,'F');
+    doc.setFontSize(7.5); doc.setFont(undefined,'bold'); doc.setTextColor(...C.verdeCl);
+    doc.text('ANÁLISE RESUMIDA',pad+3,y+4.2);
+    y+=9;
+    doc.setFontSize(8.5); doc.setFont(undefined,'normal'); doc.setTextColor(...C.texto);
+    const rL=doc.splitTextToSize(resumo,W-pad*2);
+    if(y+rL.length*5>270){doc.addPage();y=16;}
+    doc.text(rL,pad,y);
+  }
+
+  // ── RODAPÉ ────────────────────────────────────────────
+  for(let pg=1;pg<=doc.getNumberOfPages();pg++){
+    doc.setPage(pg);
+    doc.setFillColor(...C.verdeEsc); doc.rect(0,H-10,W,10,'F');
+    doc.setFontSize(7); doc.setFont(undefined,'normal'); doc.setTextColor(180,210,195);
+    doc.text('© Machado Filhos Advogados Associados — Todos os direitos reservados',W/2,H-4,{align:'center'});
+    doc.setTextColor(...C.verdeCl);
+    doc.text('Pág. '+pg+'/'+doc.getNumberOfPages(),W-pad,H-4,{align:'right'});
+  }
+
+  return doc.output('datauristring').split(',')[1];
 }
 
 async function enviarEmails() {
-  const pdfBase64 = await gerarPDFBase64();
+  const pdfBase64 = gerarPDFBase64();
 
   const payload = {
     nomeContato:  D.nome,
