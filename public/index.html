@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <!-- e-mails enviados via backend Vercel + Brevo -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
   /* ==========================================================
@@ -1822,105 +1823,44 @@ function abrirWhatsApp() {
 /* =====================================================
    ENVIO DE E-MAILS via Backend (Vercel + Brevo)
 ===================================================== */
-function gerarPDFBase64() {
+async function gerarPDFBase64() {
   try {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210, pad = 20;
+    const el = document.getElementById('step4');
 
-    // Cabeçalho
-    doc.setFillColor(10, 31, 20);
-    doc.rect(0, 0, W, 36, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(18); doc.setFont(undefined, 'bold');
-    doc.text('Machado Filhos', W/2, 14, { align: 'center' });
-    doc.setFontSize(10); doc.setFont(undefined, 'normal');
-    doc.text('Diagnóstico Financeiro Empresarial', W/2, 22, { align: 'center' });
-    doc.setFontSize(9);
-    doc.text(new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' }), W/2, 30, { align: 'center' });
+    // Oculta botões para não aparecerem no PDF
+    const btns = el.querySelectorAll('.btn, button');
+    btns.forEach(b => { b._vis = b.style.visibility; b.style.visibility = 'hidden'; });
 
-    // Score
-    const lbl = D.score >= 75 ? 'Saudável' : D.score >= 55 ? 'Razoável' : D.score >= 35 ? 'Atenção' : 'Crítico';
-    const [cr, cg, cb] = D.score >= 75 ? [29,184,122] : D.score >= 55 ? [133,200,62] : D.score >= 35 ? [232,160,32] : [192,57,43];
-    doc.setFillColor(cr, cg, cb);
-    doc.roundedRect(pad, 44, W - pad*2, 28, 4, 4, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22); doc.setFont(undefined, 'bold');
-    doc.text(`${D.score}/100`, W/2, 57, { align: 'center' });
-    doc.setFontSize(11); doc.setFont(undefined, 'normal');
-    doc.text(`Índice de Saúde: ${lbl}`, W/2, 66, { align: 'center' });
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#F2F6F4',
+      logging: false,
+      ignoreElements: el => el.classList && (el.classList.contains('btn') || el.tagName === 'BUTTON'),
+    });
 
-    // Dados do cliente
-    let y = 84;
-    doc.setTextColor(10, 31, 20);
-    doc.setFontSize(11); doc.setFont(undefined, 'bold');
-    doc.text('Dados da Empresa', pad, y); y += 6;
-    doc.setDrawColor(10, 123, 92); doc.setLineWidth(0.5);
-    doc.line(pad, y, W - pad, y); y += 6;
+    // Restaura botões
+    btns.forEach(b => { b.style.visibility = b._vis || ''; });
 
-    const info = [
-      ['Empresa', D.empresa], ['Responsável', D.nome], ['Segmento', D.bench?.nome || '—'],
-      ['Regime Tributário', (D.regime === 'simples' ? 'Simples Nacional' : D.regime === 'presumido' ? 'Lucro Presumido' : 'Lucro Real')],
-      ['Faixa de Dívida', D.dividaRange || '—'],
-    ];
-    doc.setFontSize(9); doc.setFont(undefined, 'normal');
-    for (const [k, v] of info) {
-      doc.setTextColor(100, 100, 100); doc.text(k + ':', pad, y);
-      doc.setTextColor(10, 31, 20); doc.text(String(v || '—'), pad + 50, y);
-      y += 6;
+    const imgData = canvas.toDataURL('image/jpeg', 0.82);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = 210, pageH = 297;
+    const imgW  = pageW;
+    const imgH  = (canvas.height * pageW) / canvas.width;
+
+    let posY = 0, restante = imgH;
+    pdf.addImage(imgData, 'JPEG', 0, posY, imgW, imgH);
+    restante -= pageH;
+
+    while (restante > 0) {
+      pdf.addPage();
+      posY = restante - imgH;
+      pdf.addImage(imgData, 'JPEG', 0, posY, imgW, imgH);
+      restante -= pageH;
     }
 
-    // Indicadores
-    y += 4;
-    doc.setFontSize(11); doc.setFont(undefined, 'bold');
-    doc.setTextColor(10, 31, 20);
-    doc.text('Indicadores Financeiros', pad, y); y += 6;
-    doc.setDrawColor(10, 123, 92);
-    doc.line(pad, y, W - pad, y); y += 6;
-
-    const fmt = v => 'R$ ' + Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2});
-    const pct = v => Number(v||0).toFixed(1) + '%';
-    const kpis = [
-      ['Faturamento Mensal', fmt(D.fatMensal)],
-      ['Resultado Mensal', fmt(D.lucro)],
-      ['Margem de Lucro', pct(D.margem)],
-      ['Passivo Total', fmt(D.passivo)],
-      ['Endividamento', pct(D.endividPct)],
-      ['Funcionários', String(D.funcionarios || 0)],
-    ];
-    doc.setFontSize(9); doc.setFont(undefined, 'normal');
-    for (const [k, v] of kpis) {
-      doc.setTextColor(100, 100, 100); doc.text(k + ':', pad, y);
-      doc.setTextColor(10, 31, 20); doc.text(String(v), pad + 60, y);
-      y += 6;
-    }
-
-    // Próximos passos
-    if (D.proximosPassos && D.proximosPassos.length) {
-      y += 4;
-      doc.setFontSize(11); doc.setFont(undefined, 'bold');
-      doc.setTextColor(10, 31, 20);
-      doc.text('Próximos Passos Recomendados', pad, y); y += 6;
-      doc.setDrawColor(10, 123, 92);
-      doc.line(pad, y, W - pad, y); y += 7;
-      doc.setFontSize(8.5); doc.setFont(undefined, 'normal');
-      D.proximosPassos.forEach((p, i) => {
-        const linhas = doc.splitTextToSize(`${i+1}. ${p}`, W - pad*2 - 4);
-        if (y + linhas.length * 5 > 270) { doc.addPage(); y = 20; }
-        doc.setTextColor(10, 31, 20);
-        doc.text(linhas, pad, y);
-        y += linhas.length * 5 + 2;
-      });
-    }
-
-    // Rodapé
-    doc.setFillColor(10, 31, 20);
-    doc.rect(0, 282, W, 15, 'F');
-    doc.setTextColor(180, 180, 180);
-    doc.setFontSize(8);
-    doc.text('© Machado Filhos — Todos os direitos reservados', W/2, 290, { align: 'center' });
-
-    return doc.output('datauristring').split(',')[1]; // base64 puro
+    return pdf.output('datauristring').split(',')[1];
   } catch(e) {
     console.warn('Erro ao gerar PDF:', e);
     return null;
@@ -1928,7 +1868,7 @@ function gerarPDFBase64() {
 }
 
 async function enviarEmails() {
-  const pdfBase64 = gerarPDFBase64();
+  const pdfBase64 = await gerarPDFBase64();
 
   const payload = {
     nomeContato:  D.nome,
